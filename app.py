@@ -1,4 +1,4 @@
-# app.py - Giao diện web với Streamlit
+# app.py - Phiên bản CUỐI CÙNG: Chỉ dùng selectbox, không có ô nhập liệu
 import streamlit as st
 from sentence_transformers import SentenceTransformer, util
 import pandas as pd
@@ -12,9 +12,9 @@ def load_model_and_data():
     questions = df['Câu hỏi mẫu'].tolist()
     answers = df['Câu trả lời'].tolist()
     question_embeddings = model.encode(questions, convert_to_tensor=True)
-    return model, questions, answers, question_embeddings
+    return model, questions, answers, question_embeddings, df
 
-model, questions, answers, question_embeddings = load_model_and_data()
+model, all_questions, all_answers, question_embeddings, df = load_model_and_data()
 
 # ==================== HÀM TÌM CÂU TRẢ LỜI ====================
 def find_best_answer(user_question, top_k=1):
@@ -26,40 +26,43 @@ def find_best_answer(user_question, top_k=1):
     for idx in top_results:
         score = cos_scores[idx].item()
         results.append({
-            'question': questions[idx],
-            'answer': answers[idx],
+            'question': all_questions[idx],
+            'answer': all_answers[idx],
             'similarity': score
         })
     return results
 
 # ==================== GIAO DIỆN WEB ====================
-st.set_page_config(page_title="🤖 Chatbot Hỏi Đáp", page_icon="💬")
+st.set_page_config(page_title="Chatbot Hỏi Đáp", page_icon="💬")
 st.title("💬 Chatbot Tìm Kiếm Câu Trả Lời")
 
 st.markdown("""
-Nhập câu hỏi của bạn vào ô bên dưới, bot sẽ tìm và trả lời dựa trên dữ liệu đã được cung cấp.
+Vui lòng **chọn một câu hỏi** từ danh sách bên dưới, sau đó nhấn **Gửi** để nhận câu trả lời.
 """)
 
-# Ô nhập liệu trên web — KHÔNG DÙNG TERMINAL
-user_input = st.text_input("📝 Bạn hỏi:", placeholder="Ví dụ: Hướng dẫn cấp tài khoản")
+# ➕ CHỈ DÙNG SELECTBOX — KHÔNG CÓ Ô NHẬP LIỆU
+chosen_question = st.selectbox(
+    "📌 Chọn câu hỏi:",
+    options=[""] + all_questions,
+    format_func=lambda x: "— Vui lòng chọn —" if x == "" else x,
+    index=0,
+    key="final_selector"
+)
 
-# Nút gửi (tùy chọn, để tăng trải nghiệm)
-if st.button("Gửi") or user_input:  # Có thể nhấn Enter hoặc nhấn nút
-    if user_input.strip() == "":
-        st.warning("⚠️ Vui lòng nhập câu hỏi!")
+# Nút gửi
+if st.button("🔍 Gửi"):
+    if not chosen_question.strip():
+        st.warning("⚠️ Vui lòng chọn câu hỏi trước khi gửi!")
     else:
         with st.spinner("Đang tìm câu trả lời phù hợp..."):
-            results = find_best_answer(user_input, top_k=1)
+            results = find_best_answer(chosen_question, top_k=1)
             best = results[0]
 
             if best['similarity'] > 0.5:
                 st.success(f"✅ **Câu trả lời:** {best['answer']}")
-                # with st.expander("🔍 Xem chi tiết"):
-                #     st.write(f"- Câu hỏi mẫu gần nhất: *{best['question']}*")
-                #     st.write(f"- Độ tương đồng: `{best['similarity']:.3f}`")
             else:
                 st.error("❌ Xin lỗi, tôi chưa tìm được câu trả lời phù hợp.")
 
 # Footer nhỏ
 st.markdown("---")
-st.caption("© 2025 Chatbot Hỏi Đáp - Powered by ducnv.hth TT CNTT VNPT Hà Tĩnh")
+st.caption("© 2025 Chatbot Hỏi Đáp - Powered by ducnv.hth@vnpt.vn TT CNTT VNPT Hà Tĩnh")
