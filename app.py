@@ -1,8 +1,9 @@
-# app.py - Phiên bản CUỐI CÙNG: Chỉ dùng selectbox, không có ô nhập liệu
+# app.py - Phiên bản HOÀN CHỈNH: Tự động hiển thị PDF nếu là link Google Drive — full width, không cần nhấn xem trước
 import streamlit as st
 from sentence_transformers import SentenceTransformer, util
 import pandas as pd
 import numpy as np
+import re
 
 # ==================== LOAD MODEL & DATA ====================
 @st.cache_resource
@@ -32,15 +33,38 @@ def find_best_answer(user_question, top_k=1):
         })
     return results
 
+# ==================== HÀM XỬ LÝ LINK GOOGLE DRIVE ====================
+def is_google_drive_pdf_link(text):
+    """Kiểm tra xem chuỗi có phải là link Google Drive đến file PDF không"""
+    pattern = r"https://drive\.google\.com/file/d/([a-zA-Z0-9_-]+)/"
+    match = re.search(pattern, text)
+    return match
+
+def get_direct_download_link(drive_url):
+    """Chuyển link Google Drive sang link tải trực tiếp"""
+    match = is_google_drive_pdf_link(drive_url)
+    if match:
+        file_id = match.group(1)
+        return f"https://drive.google.com/uc?export=download&id={file_id}"
+    return drive_url
+
+def get_embed_pdf_link(drive_url):
+    """Chuyển link Google Drive sang link xem trước PDF trong iframe"""
+    match = is_google_drive_pdf_link(drive_url)
+    if match:
+        file_id = match.group(1)
+        return f"https://drive.google.com/file/d/{file_id}/preview"
+    return None
+
 # ==================== GIAO DIỆN WEB ====================
-st.set_page_config(page_title="Chatbot Hỏi Đáp", page_icon="💬")
+st.set_page_config(page_title="🤖 Chatbot Hỏi Đáp", page_icon="💬", layout="wide")
 st.title("💬 Chatbot Tìm Kiếm Câu Trả Lời")
 
 st.markdown("""
 Vui lòng **chọn một câu hỏi** từ danh sách bên dưới, sau đó nhấn **Gửi** để nhận câu trả lời.
 """)
 
-# ➕ CHỈ DÙNG SELECTBOX — KHÔNG CÓ Ô NHẬP LIỆU
+# ➕ SELECTBOX DUY NHẤT — KHÔNG Ô NHẬP LIỆU
 chosen_question = st.selectbox(
     "📌 Chọn câu hỏi:",
     options=[""] + all_questions,
@@ -59,10 +83,33 @@ if st.button("🔍 Gửi"):
             best = results[0]
 
             if best['similarity'] > 0.5:
-                st.success(f"✅ **Câu trả lời:** {best['answer']}")
+                answer = best['answer']
+                st.success("✅ **Câu trả lời:**")
+
+                # Kiểm tra nếu là link Google Drive PDF
+                drive_match = is_google_drive_pdf_link(answer)
+                if drive_match:
+                    file_id = drive_match.group(1)
+                    download_link = get_direct_download_link(answer)
+                    preview_link = get_embed_pdf_link(answer)
+
+                    # Hiển thị nút tải
+                    st.markdown(f"📄 [📥 Tải file PDF]({download_link})")
+
+                    # TỰ ĐỘNG HIỂN THỊ FILE PDF — FULL WIDTH
+                    if preview_link:
+                        st.components.v1.iframe(
+                            src=preview_link,
+                            width=None,  # = 100%
+                            height=700,
+                            scrolling=True
+                        )
+                else:
+                    # Hiển thị text bình thường
+                    st.write(answer)
             else:
                 st.error("❌ Xin lỗi, tôi chưa tìm được câu trả lời phù hợp.")
 
 # Footer nhỏ
 st.markdown("---")
-st.caption("© 2025 Chatbot Hỏi Đáp - Powered by ducnv.hth@vnpt.vn TT CNTT VNPT Hà Tĩnh")
+st.caption("© 2025 Chatbot Hỏi Đáp - Powered by ducnv.hth TT CNTT VNPT Hà Tĩnh")
