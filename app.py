@@ -57,7 +57,7 @@ def get_embed_pdf_link(drive_url):
     return None
 
 # ==================== GIAO DIỆN WEB ====================
-st.set_page_config(page_title="🤖 Chatbot Hỏi Đáp", page_icon="💬", layout="wide")
+st.set_page_config(page_title="Chatbot Hỏi Đáp", page_icon="💬", layout="wide")
 st.title("💬 Chatbot Tìm Kiếm Câu Trả Lời")
 
 st.markdown("""
